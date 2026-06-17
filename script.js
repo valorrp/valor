@@ -113,7 +113,7 @@
         });
     }, {
         threshold: 0.08,
-        rootMargin: '0px 0px-40px 0px'
+        rootMargin: '0px 0px -40px 0px'
     });
     revealEls.forEach(el => revealObserver.observe(el));
     const backTop = document.getElementById('backTop');
