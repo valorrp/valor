@@ -325,7 +325,7 @@
 
     async function updateStaffStatus() {
         try {
-            const response = await fetch(`https://discord.com/api/guilds/${guildId}/widget.json`);
+            const response = await fetch(`https://discord.com/api/guilds/${guildId}/widget.json?_t=${Date.now()}`);
             if (!response.ok) return;
             const data = await response.json();
             
