@@ -324,30 +324,140 @@
     const guildId = '1480974725592252712';
     const staffCards = document.querySelectorAll('.staff-card');
 
+    function removeUnicodeFormatting(str) {
+        if (!str) return '';
+        return str.replace(/[\uD835][\uDC00-\uDFFF]/g, (char) => {
+            const code = char.codePointAt(0);
+            let offset = 0;
+            if (code >= 0x1D400 && code <= 0x1D419) offset = code - 0x1D400 + 65; // Bold A-Z
+            else if (code >= 0x1D41A && code <= 0x1D433) offset = code - 0x1D41A + 97; // Bold a-z
+            else if (code >= 0x1D434 && code <= 0x1D44D) offset = code - 0x1D434 + 65; // Italic A-Z
+            else if (code >= 0x1D44E && code <= 0x1D467) offset = code - 0x1D44E + 97; // Italic a-z
+            else if (code >= 0x1D468 && code <= 0x1D481) offset = code - 0x1D468 + 65; // Bold Italic A-Z
+            else if (code >= 0x1D482 && code <= 0x1D49B) offset = code - 0x1D482 + 97; // Bold Italic a-z
+            else if (code >= 0x1D49C && code <= 0x1D4B5) offset = code - 0x1D49C + 65; // Script A-Z
+            else if (code >= 0x1D4B6 && code <= 0x1D4CF) offset = code - 0x1D4B6 + 97; // Script a-z
+            else if (code >= 0x1D4D0 && code <= 0x1D4E9) offset = code - 0x1D4D0 + 65; // Bold Script A-Z
+            else if (code >= 0x1D4EA && code <= 0x1D503) offset = code - 0x1D4EA + 97; // Bold Script a-z
+            else if (code >= 0x1D504 && code <= 0x1D51D) offset = code - 0x1D504 + 65; // Fraktur A-Z
+            else if (code >= 0x1D51E && code <= 0x1D537) offset = code - 0x1D51E + 97; // Fraktur a-z
+            else if (code >= 0x1D538 && code <= 0x1D551) offset = code - 0x1D538 + 65; // Double-struck A-Z
+            else if (code >= 0x1D552 && code <= 0x1D56B) offset = code - 0x1D552 + 97; // Double-struck a-z
+            else if (code >= 0x1D56C && code <= 0x1D585) offset = code - 0x1D56C + 65; // Bold Fraktur A-Z
+            else if (code >= 0x1D586 && code <= 0x1D59F) offset = code - 0x1D586 + 97; // Bold Fraktur a-z
+            else if (code >= 0x1D5A0 && code <= 0x1D5B9) offset = code - 0x1D5A0 + 65; // Sans-serif A-Z
+            else if (code >= 0x1D5BA && code <= 0x1D5D3) offset = code - 0x1D5BA + 97; // Sans-serif a-z
+            else if (code >= 0x1D5D4 && code <= 0x1D5ED) offset = code - 0x1D5D4 + 65; // Sans-serif Bold A-Z
+            else if (code >= 0x1D5EE && code <= 0x1D607) offset = code - 0x1D5EE + 97; // Sans-serif Bold a-z
+            else if (code >= 0x1D608 && code <= 0x1D621) offset = code - 0x1D608 + 65; // Sans-serif Italic A-Z
+            else if (code >= 0x1D622 && code <= 0x1D63B) offset = code - 0x1D622 + 97; // Sans-serif Italic a-z
+            else if (code >= 0x1D63C && code <= 0x1D655) offset = code - 0x1D63C + 65; // Sans-serif Bold Italic A-Z
+            else if (code >= 0x1D656 && code <= 0x1D66F) offset = code - 0x1D656 + 97; // Sans-serif Bold Italic a-z
+            else if (code >= 0x1D670 && code <= 0x1D689) offset = code - 0x1D670 + 65; // Monospace A-Z
+            else if (code >= 0x1D68A && code <= 0x1D6A3) offset = code - 0x1D68A + 97; // Monospace a-z
+            return offset ? String.fromCharCode(offset) : char;
+        });
+    }
+
+    function cleanName(str) {
+        if (!str) return '';
+        let normalized = removeUnicodeFormatting(str).toLowerCase();
+        // إزالة الرموز الخاصة وعلامات الترقيم والرموز التعبيرية والمسافات
+        normalized = normalized.replace(/[^a-z0-9\u0600-\u06FF]/g, '');
+        // إزالة بادئة va الشائعة في السيرفر إذا بدأت بها الكلمة
+        if (normalized.startsWith('va')) {
+            normalized = normalized.slice(2);
+        }
+        return normalized;
+    }
+
     async function updateStaffStatus() {
         try {
             const response = await fetch(`https://discord.com/api/guilds/${guildId}/widget.json?_t=${Date.now()}`);
             if (!response.ok) return;
             const data = await response.json();
             
-            if (staffCards.length > 0) {
-                // استخراج قائمة أسماء الأعضاء المتصلين بالإنترنت (بالحروف الصغيرة لمقارنة غير حساسة للأحرف)
-                const onlineUsernames = new Set((data.members || []).map(m => String(m.username).toLowerCase()));
+            if (staffCards.length > 0 && data.members) {
+                // تبسيط أسماء الأعضاء المتصلين بالإنترنت مع حفظ حالتهم الفردية
+                const onlineMembersCleaned = data.members.map(m => ({
+                    id: String(m.id),
+                    usernameCleaned: cleanName(m.username),
+                    originalUsername: String(m.username).toLowerCase(),
+                    status: String(m.status || 'online').toLowerCase()
+                }));
 
                 staffCards.forEach(card => {
+                    const idAttr = card.getAttribute('data-discord-id');
                     const usernameAttr = card.getAttribute('data-discord-username');
                     const cardName = card.querySelector('h4')?.textContent;
                     const statusEl = card.querySelector('.staff-status');
                     if (!statusEl) return;
 
-                    const username = usernameAttr ? usernameAttr.trim().toLowerCase() : '';
-                    const dispName = cardName ? cardName.trim().toLowerCase() : '';
+                    const cardId = idAttr ? idAttr.trim() : '';
+                    const dispNameCleaned = cleanName(cardName);
+                    
+                    // استخراج الكلمات المفتاحية لاسم الديسكورد من الكارد
+                    const usernames = usernameAttr 
+                        ? usernameAttr.split(',').map(u => cleanName(u.trim())).filter(u => u !== '')
+                        : [];
+                    
+                    if (dispNameCleaned) {
+                        usernames.push(dispNameCleaned);
+                    }
 
-                    if ((username && onlineUsernames.has(username)) || (dispName && onlineUsernames.has(dispName))) {
-                        statusEl.textContent = 'متصل';
-                        statusEl.style.color = 'var(--emerald)';
+                    // التحقق مما إذا كان العضو متصلاً وحفظ بياناته
+                    let isOnline = false;
+                    let matchedMember = null;
+                    
+                    for (const member of onlineMembersCleaned) {
+                        // 1. مطابقة المعرف الرقمي إذا وجد وكان الـ API يرجعه كخيار أول
+                        if (cardId && member.id === cardId) {
+                            isOnline = true;
+                            matchedMember = member;
+                            break;
+                        }
+                        
+                        // 2. مطابقة مرنة ومبسطة لاسم المستخدم والاسم المعروض
+                        for (const targetUser of usernames) {
+                            if (!targetUser) continue;
+                            
+                            // إذا كان أحد الأسماء قصيراً جداً (أقل من حرفين)، نستخدم التطابق التام
+                            if (targetUser.length < 2 || member.usernameCleaned.length < 2) {
+                                if (member.usernameCleaned === targetUser || member.originalUsername === targetUser) {
+                                    isOnline = true;
+                                    matchedMember = member;
+                                    break;
+                                }
+                            } else {
+                                // وإلا نستخدم المطابقة الجزئية
+                                if (
+                                    member.usernameCleaned.includes(targetUser) || 
+                                    targetUser.includes(member.usernameCleaned) ||
+                                    member.originalUsername.includes(targetUser)
+                                ) {
+                                    isOnline = true;
+                                    matchedMember = member;
+                                    break;
+                                }
+                            }
+                        }
+                        if (isOnline) break;
+                    }
+
+                    if (isOnline && matchedMember) {
+                        const statusKey = matchedMember.status;
+                        if (statusKey === 'dnd') {
+                            statusEl.textContent = 'Do Not Disturb';
+                            statusEl.style.color = '#ff4655'; // أحمر نيون
+                        } else if (statusKey === 'idle') {
+                            statusEl.textContent = 'Idle';
+                            statusEl.style.color = 'var(--gold)'; // ذهبي نيون
+                        } else {
+                            statusEl.textContent = 'Online';
+                            statusEl.style.color = 'var(--emerald)'; // أخضر نيون
+                        }
                     } else {
-                        statusEl.textContent = 'غير متصل';
+                        statusEl.textContent = 'Offline';
                         statusEl.style.color = 'var(--text-muted)';
                     }
                 });
@@ -358,5 +468,5 @@
     }
 
     updateStaffStatus();
-    setInterval(updateStaffStatus, 120000);
+    setInterval(updateStaffStatus, 30000);
 })();

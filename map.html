@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>خريطة المناطق الرسمية | سيرفر فالور</title>
+    <!-- تضمين ملف التنسيق الرئيسي للموقع -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- خطوط جوجل المستخدمة في الموقع الرئيسي -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Readex+Pro:wght@300;400;500;600;700&family=Reem+Kufi:wght@500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* تخصيصات وتنسيقات إضافية لصفحة الخريطة والمواقع */
+        :root {
+            --map-sidebar-w: 360px;
+        }
+
+        body {
+            overflow: hidden; /* منع التمرير الكلي للصفحة لأن الخريطة ستملأ الشاشة */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* تخطيط الصفحة الرئيسي */
+        .map-layout {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 70px); /* اقتطاع مساحة الترويسة */
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ترويسة صفحة الخريطة */
+        .map-header {
+            height: 70px;
+            background: rgba(10, 10, 18, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 100;
+        }
+
+        .map-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .map-brand-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            object-fit: contain;
+            border: 1px solid var(--border-gold);
+        }
+
+        .map-brand-text h1 {
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .map-brand-text span {
+            font-size: 12px;
+            color: var(--gold-bright);
+            font-weight: 500;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-soft);
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.25s ease;
+        }
+
+        .back-btn:hover {
+            color: var(--text);
+            background: var(--bg-elevated);
+            border-color: var(--gold);
+            box-shadow: 0 0 12px rgba(176, 107, 255, 0.2);
+            transform: translateX(-3px);
+        }
+
+        /* حاوية عرض الخريطة والصور في المنتصف */
+        .map-viewer {
+            flex: 1;
+            position: relative;
+            background: #030305;
+            overflow: hidden;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-viewer:active {
+            cursor: grabbing;
+        }
+
+        .map-image-wrapper {
+            position: absolute;
+            transform-origin: center center;
+            transition: transform 0.05s ease-out;
+            user-select: none;
+            -webkit-user-drag: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-image-main {
+            width: 2000px; /* حجم صورة افتراضي ممتاز */
+            height: auto;
+            max-width: none;
+            max-height: none;
+            display: block;
+            pointer-events: none;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+            border-radius: 4px;
+        }
+
+        /* أدوات التحكم بالخريطة */
+        .map-controls {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .control-btn {
+            width: 44px;
+            height: 44px;
+            background: rgba(19, 19, 33, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-soft);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+        }
+
+        .control-btn:hover {
+            color: var(--text);
+            background: var(--bg-elevated);
+            border-color: var(--gold);
+            transform: translateY(-2px);
+            box-shadow: 0 0 10px rgba(176, 107, 255, 0.25);
+        }
+
+        /* الشاشة الترحيبية بالمنتصف */
+        .map-welcome-screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(6, 6, 10, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 15;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .map-welcome-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .welcome-content {
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .welcome-logo {
+            width: 110px;
+            height: 110px;
+            border-radius: 24px;
+            box-shadow: 0 0 40px rgba(176, 107, 255, 0.35);
+            border: 2px solid var(--gold);
+            margin-bottom: 8px;
+            animation: welcomePulse 3s infinite ease-in-out;
+        }
+
+        @keyframes welcomePulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 40px rgba(176, 107, 255, 0.35); }
+            50% { transform: scale(1.05); box-shadow: 0 0 50px rgba(176, 107, 255, 0.55); }
+        }
+
+        .welcome-content h2 {
+            font-family: var(--font-display);
+            font-size: 26px;
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .welcome-content p {
+            font-size: 15px;
+            color: var(--text-soft);
+            line-height: 1.6;
+        }
+
+        /* أزرار تنقل المعرض المدمجة بالمنتصف */
+        .map-gallery-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(19, 19, 33, 0.85);
+            border: 1px solid var(--border);
+            color: var(--text-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            z-index: 12;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+        }
+
+        .map-gallery-btn:hover {
+            color: var(--text);
+            background: var(--bg-elevated);
+            border-color: var(--gold);
+            box-shadow: 0 0 15px rgba(176, 107, 255, 0.35);
+        }
+
+        .map-gallery-btn.prev { right: 24px; }
+        .map-gallery-btn.next { left: 24px; }
+
+        /* نقاط التمرير المدمجة بالمنتصف */
+        .map-gallery-dots {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 12;
+            padding: 8px 16px;
+            background: rgba(10, 10, 18, 0.7);
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+        }
+
+        .map-gallery-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .map-gallery-dot.active {
+            background: var(--gold);
+            width: 18px;
+            border-radius: 4px;
+        }
+
+        /* قالب فارغ يعرض عند عدم توفر صور للموقع المحدد */
+        .map-image-placeholder-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 700px;
+            height: 420px;
+            background: var(--bg-card);
+            border: 2px dashed rgba(176, 107, 255, 0.25);
+            border-radius: 12px;
+            color: var(--text-muted);
+            gap: 16px;
+            text-align: center;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .map-image-placeholder-inner h3 {
+            color: var(--gold-bright);
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .map-image-placeholder-inner p {
+            font-size: 14px;
+            max-width: 440px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* لوحة القائمة الجانبية للمواقع */
+        .map-sidebar {
+            width: var(--map-sidebar-w);
+            background: rgba(10, 10, 18, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-search-box {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .search-input-wrapper input {
+            width: 100%;
+            padding: 10px 36px 10px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.25s;
+        }
+
+        .search-input-wrapper input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 8px rgba(176, 107, 255, 0.15);
+        }
+
+        .search-icon-map {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        /* قائمة المواقع */
+        .sites-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .site-item {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-align: right;
+        }
+
+        .site-item:hover {
+            border-color: var(--border-bright);
+            background: var(--bg-elevated);
+            transform: translateY(-1px);
+        }
+
+        .site-item.active {
+            border-color: var(--gold);
+            background: rgba(176, 107, 255, 0.08);
+            box-shadow: inset 3px 0 0 var(--gold);
+        }
+
+        .site-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .site-item-title {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        .site-item-badge {
+            font-size: 11px;
+            padding: 2px 6px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .site-item.active .site-item-badge {
+            border-color: var(--gold-bright);
+            color: var(--gold-bright);
+        }
+
+        .site-item-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 12px;
+        }
+
+        /* لوحة التفاصيل الكبيرة للموقع النشط */
+        .site-details-panel {
+            width: 460px;
+            background: rgba(10, 10, 18, 0.98);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 21;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .site-details-panel.hidden {
+            transform: translateX(100%);
+        }
+
+        .panel-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .panel-subtitle {
+            font-size: 13px;
+            color: var(--gold-bright);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .close-panel-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .close-panel-btn:hover {
+            background: var(--bg-elevated);
+            color: var(--text);
+            border-color: var(--gold);
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* بطاقات الإحصائيات (المشاركين والأسلحة) */
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 12px;
+        }
+
+        .meta-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .meta-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .meta-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .meta-team-stats {
+            display: flex;
+            justify-content: flex-start;
+            gap: 24px;
+            align-items: center;
+            margin-top: 4px;
+            font-size: 14px;
+        }
+
+        .team-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .team-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .team-dot.cops { background: #3498db; }
+        .team-dot.criminals { background: #e74c3c; }
+
+        /* أقسام القوانين الملونة */
+        .rules-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .zone-rule-card {
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            background: var(--bg-card);
+        }
+
+        .zone-header {
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+        }
+
+        .zone-body {
+            padding: 14px 16px;
+            font-size: 13.5px;
+            color: var(--text-soft);
+            line-height: 1.6;
+            text-align: right;
+        }
+
+        /* ألوان المناطق النيون */
+        .zone-red { border-color: rgba(231, 76, 60, 0.3); }
+        .zone-red .zone-header { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border-bottom: 1px solid rgba(231, 76, 60, 0.2); }
+
+        .zone-blue { border-color: rgba(52, 152, 219, 0.3); }
+        .zone-blue .zone-header { background: rgba(52, 152, 219, 0.15); color: #3498db; border-bottom: 1px solid rgba(52, 152, 219, 0.2); }
+
+        .zone-green { border-color: rgba(46, 204, 113, 0.3); }
+        .zone-green .zone-header { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border-bottom: 1px solid rgba(46, 204, 113, 0.2); }
+
+        .zone-white { border-color: rgba(255, 255, 255, 0.2); }
+        .zone-white .zone-header { background: rgba(255, 255, 255, 0.08); color: #f6f4ff; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+
+        /* تنقل الهواتف وزر إخفاء/إظهار القائمة */
+        .sidebar-toggle-btn {
+            display: none;
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            z-index: 50;
+            background: var(--gold);
+            color: var(--bg-deep);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 4px 15px rgba(176, 107, 255, 0.4);
+            border: none;
+            cursor: pointer;
+        }
+
+        /* شاشة ملء الشاشة الفاخرة */
+        .map-viewer:-webkit-full-screen { width: 100%; height: 100%; }
+        .map-viewer:-ms-fullscreen { width: 100%; height: 100%; }
+        .map-viewer:fullscreen { width: 100%; height: 100%; }
+
+        /* التجاوب للتصميم */
+        @media (max-width: 1024px) {
+            .map-sidebar {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                right: 0;
+                transform: translateX(100%);
+                width: 320px;
+                box-shadow: -10px 0 30px rgba(0, 0, 0, 0.6);
+            }
+
+            .map-sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar-toggle-btn {
+                display: flex;
+            }
+
+            .site-details-panel {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                max-width: 440px;
+                transform: translateX(-100%);
+            }
+
+            .site-details-panel.open-mobile {
+                transform: translateX(0);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .map-header {
+                padding: 0 16px;
+            }
+
+            .map-brand-text h1 {
+                font-size: 16px;
+            }
+
+            .back-btn span {
+                display: none; /* إخفاء النص في الهواتف الصغيرة وإبقاء السهم */
+            }
+
+            .site-details-panel {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- شبكة الخلفية المضيئة وهالات النيون الفخمة -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-noise"></div>
+
+    <!-- الترويسة الرئيسية -->
+    <header class="map-header">
+        <div class="map-brand">
+            <img src="https://r2.fivemanage.com/8fPnYDsb59MTmarWtBzFa/512.png" alt="شعار فالور" class="map-brand-logo">
+            <div class="map-brand-text">
+                <h1>خريطة المناطق الرسمية</h1>
+                <span>سيرفر فالور رول بلاي</span>
+            </div>
+        </div>
+        <a href="index.html" class="back-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 19 12 12 5"></polyline>
+            </svg>
+            <span>العودة لكتاب القوانين</span>
+        </a>
+    </header>
+
+    <!-- واجهة الخريطة والتفاصيل -->
+    <div class="map-layout">
+        
+        <!-- زر فتح القائمة الجانبية (للهواتف) -->
+        <button class="sidebar-toggle-btn" id="sidebarToggle" aria-label="عرض المواقع">
+            🗺️
+        </button>
+
+        <!-- لوحة التفاصيل الجانبية (تظهر على اليسار عند النقر على موقع) -->
+        <div class="site-details-panel hidden" id="siteDetailsPanel">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <h2 id="detailName">اسم الموقع</h2>
+                    <div class="panel-subtitle">
+                        <span>📍 المربع:</span>
+                        <strong id="detailSquare" class="rules-code">7251</strong>
+                    </div>
+                </div>
+                <button class="close-panel-btn" id="closePanelBtn" aria-label="إغلاق اللوحة">×</button>
+            </div>
+            
+            <div class="panel-body">
+                <!-- إحصائيات المشاركين والأسلحة -->
+                <div class="meta-grid">
+                    <div class="meta-card">
+                        <span class="meta-label">عدد المشاركين الحد الأقصى</span>
+                        <div class="meta-team-stats">
+                            <span class="team-badge"><span class="team-dot cops"></span>عساكر: <strong id="detailCops">0</strong></span>
+                            <span class="team-badge"><span class="team-dot criminals"></span>مجرمين: <strong id="detailCriminals">0</strong></span>
+                        </div>
+                    </div>
+                    <div class="meta-card">
+                        <span class="meta-label">الأسلحة المسموحة</span>
+                        <span class="meta-value" id="detailWeapons">Combat Pistol</span>
+                    </div>
+                </div>
+
+                <!-- القوانين الملونة للمناطق -->
+                <div class="rules-wrapper" id="detailRules">
+                    <!-- تُضاف بطاقات قوانين المناطق ديناميكياً -->
+                </div>
+            </div>
+        </div>
+
+        <!-- عارض الصور والخريطة في المنتصف -->
+        <div class="map-viewer" id="mapViewer">
+            
+            <!-- الشاشة الترحيبية المضيئة -->
+            <div class="map-welcome-screen" id="mapWelcomeScreen">
+                <div class="welcome-content">
+                    <img src="https://r2.fivemanage.com/8fPnYDsb59MTmarWtBzFa/512.png" alt="شعار فالور" class="welcome-logo">
+                    <h2>خريطة المناطق التفاعلية</h2>
+                    <p>يرجى اختيار أحد المواقع من القائمة الجانبية لعرض الخريطة التوضيحية والقوانين والتعليمات المحددة له.</p>
+                </div>
+            </div>
+
+            <!-- حاوية الصورة الفخمة القابلة للتكبير والتحريك -->
+            <div class="map-image-wrapper" id="mapImageWrapper">
+                <!-- تُعبأ الصورة ديناميكياً هنا عند اختيار موقع -->
+            </div>
+
+            <!-- أزرار معرض الصور المدمج في المنتصف -->
+            <button class="map-gallery-btn prev" id="mapGalleryPrev" style="display: none;" title="الصورة السابقة">❮</button>
+            <button class="map-gallery-btn next" id="mapGalleryNext" style="display: none;" title="الصورة التالية">❯</button>
+            <div class="map-gallery-dots" id="mapGalleryDots" style="display: none;"></div>
+
+            <!-- أزرار التحكم بالخريطة والزوم -->
+            <div class="map-controls">
+                <button class="control-btn" id="zoomIn" title="تكبير">+</button>
+                <button class="control-btn" id="zoomOut" title="تصغير">-</button>
+                <button class="control-btn" id="resetZoom" title="إعادة تعيين ↺">↺</button>
+                <button class="control-btn" id="fullscreenToggle" title="ملء الشاشة ⛶">⛶</button>
+            </div>
+        </div>
+
+        <!-- القائمة الجانبية للمواقع والبحث -->
+        <aside class="map-sidebar" id="mapSidebar">
+            <div class="sidebar-search-box">
+                <div class="search-input-wrapper">
+                    <input type="text" id="siteSearch" placeholder="بحث عن موقع..." aria-label="بحث عن موقع">
+                    <span class="search-icon-map">🔍</span>
+                </div>
+            </div>
+            
+            <div class="sites-list" id="sitesList">
+                <!-- يتم تعبئتها ديناميكياً عبر JavaScript -->
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- كود جافاسكريبت لإدارة العمليات التفاعلية والبيانات الـ 15 -->
+    <script>
+        // مصفوفة بيانات الـ 15 موقعاً كما أرسلها المستخدم
+        // يمكن للمستخدم إضافة روابط الصور يدوياً داخل مصفوفة images لكل موقع.
+        const sitesData = [
+            {
+                id: "jewelery",
+                name: "المجوهرات",
+                square: "7251",
+                cops: 13,
+                criminals: 10,
+                weapons: "combat Pistol - MK2 Pistol - Heavy Pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490091134242914435/image.png?ex=6a33b142&is=6a325fc2&hm=9c69958bc518c2d5482c57aea8b84853e3341cde5c2deda37b4f2023ae52eb68&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "metro-city",
+                name: "مترو المدينة",
+                square: "8072",
+                cops: 23,
+                criminals: 18,
+                weapons: "combat Pistol - MK2 Pistol - Heavy Pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490091474174345298/image.png?ex=6a33b194&is=6a326014&hm=514602916ae492ed19ff68a2c09741e49d082f0558af262844740802c9a5ad26&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490091475168399411/54.png?ex=6a33b194&is=6a326014&hm=597ac88f8f3694599d8d82028fc39489df16e6d65c082f79c74de10da82933b6&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوز تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "metro-airport",
+                name: "مترو المطار",
+                square: "10024",
+                cops: 23,
+                criminals: 18,
+                weapons: "combat Pistol + MK2 Pistol + Heavy Pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490091692014174269/1.png?ex=6a33b1c7&is=6a326047&hm=3fabef52baac1a248f8f1792a2912fbec9e9609516739e56e64637acfee6fea8&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490091692542525653/0.png?ex=6a33b1c8&is=6a326048&hm=365a57fd5cfabff11cf28790f40e1830b0c2f4338b8fce7c4eb99b35be3b4152&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه",
+                    white: "مناطق وجود المسعفين بعد عد بدء السيناريو"
+                }
+            },
+            {
+                id: "metro-bahamas",
+                name: "مترو بهامس",
+                square: "7215",
+                cops: 23,
+                criminals: 18,
+                weapons: "combat Pistol - MK2 Pistol - Heavy Pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490091858120933587/0.png?ex=6a33b1ef&is=6a32606f&hm=2fda04e54425bcdfbd2838f9865f7c944d79481679c903dbdd646154a09f6b3f&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490091858540630066/1.png?ex=6a33b1ef&is=6a32606f&hm=62876a6c424ec3d426f7ad45556d579ec3f55a596587f66727105c8e5eef790c&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "metro-mall",
+                name: "مترو المول",
+                square: "7245",
+                cops: 23,
+                criminals: 18,
+                weapons: "combat Pistol - MK2 Pistol - Heavy Pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092009371992094/4.png?ex=6a33b213&is=6a326093&hm=9035aac9d42057918f5dd1d77f33537c74f1bd7f3b4c82cfbd05156d519f16b7&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه",
+                    white: "مناطق وجود المسعفين بعد عد بدء السيناريو"
+                }
+            },
+            {
+                id: "metro-first",
+                name: "المترو الاول",
+                square: "7180",
+                cops: 23,
+                criminals: 18,
+                weapons: "combat Pistol - MK2 Pistol - Heavy Pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092129387810897/5.png?ex=6a33b230&is=6a3260b0&hm=22c2e9c9fbde8638c75a431902d94efb9604313a7a97b2b88ecd09144e059b24&=&format=webp&quality=lossless&width=550&height=336"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "boat-factory",
+                name: "مصنع القوارب",
+                square: "10060",
+                cops: 30,
+                criminals: 25,
+                weapons: "جميع الاسلحه ما عدا السنايبر والشتقن و MG و Combat MG",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092250577895615/7.png?ex=6a33b24d&is=6a3260cd&hm=d0687e34372fb94ebe4896385bad4ca9dc157fbdd97338ede99eaeeac23eddce&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "chicken-factory",
+                name: "مصنع الدجاج",
+                square: "1029",
+                cops: 25,
+                criminals: 20,
+                weapons: "جميع الاسلحه ما عدا السنايبر والشتقن",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092487182651544/1.png?ex=6a33b285&is=6a326105&hm=ca132dd87186243e5a4af3f5489b2143c4739faa1f57f96a671bb822a243e88b&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092487518191656/2.png?ex=6a33b285&is=6a326105&hm=1a1a4d139fb8615062cc5e9ff120c9cdd8e533832f3a7c275f96127d9845fde6&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092488025964586/3.png?ex=6a33b285&is=6a326105&hm=992f631736da0188c1739c2943f63069867e6450a53680110bb201fe3d20cf34&=&format=webp&quality=lossless&width=1367&height=856"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "cow-factory",
+                name: "مصنع البقر",
+                square: "9299",
+                cops: 25,
+                criminals: 20,
+                weapons: "جميع الاسلحه ما عدا السنايبر والشتقن",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092710667747438/4.png?ex=6a33b2ba&is=6a32613a&hm=174201a4aeaf6045b31bdf83b1a7ff440cee00c453127a16d6aa8246ddfb7d1e&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092710999228456/5.png?ex=6a33b2ba&is=6a32613a&hm=12ee8cd7b697cf785e5a282b90c78d7c689967ae0080fb84c27526d130972b6b&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092711376851024/6.png?ex=6a33b2ba&is=6a32613a&hm=5dbadccccc64521e7649a4b367129527b32c21bdce53c38b534c5e80ea0fa40a&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه",
+                    white: "مناطق وجود المسعفين بعد عد بدء السيناريو"
+                }
+            },
+            {
+                id: "central-bank",
+                name: "البنك المركزي الاول",
+                square: "7090",
+                cops: 25,
+                criminals: 20,
+                weapons: "جميع الاسلحه ما عدا السنايبر والشتقن",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092840762474606/7.png?ex=6a33b2d9&is=6a326159&hm=e360b32dc02af0d035b7745e90fd5eb5690405fb05e5d4ffc6d3dea5dad9ae48&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092841123188766/8.png?ex=6a33b2d9&is=6a326159&hm=527c93ed434f1be67aa1304e3ae6510afecf0c45e0705a92c51a3fbb458f164a&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "tailor",
+                name: "الخياط",
+                square: "8182",
+                cops: 15,
+                criminals: 10,
+                weapons: "combat Pistol - MK2 Pistol - Heavy Pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092978407211149/9.png?ex=6a33b2fa&is=6a32617a&hm=3a7ce7c2f5bf1f039a5c77a8026f1adb56411e365d0358e5ca6cf0f5c557f71d&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490092978679582831/10.png?ex=6a33b2fa&is=6a32617a&hm=2f1ac214cbd62517e4906d73767b9db306a6d65d0fba0d6ea0519f1c7613f34a&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه",
+                    white: "مناطق وجود المسعفين بعد عد بدء السيناريو"
+                }
+            },
+            {
+                id: "studio",
+                name: "الاستديو",
+                square: "7178",
+                cops: 20,
+                criminals: 15,
+                weapons: "combat Pistol - MK2 Pistol - Heavy Pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490093146321977536/11.png?ex=6a33b322&is=6a3261a2&hm=dbbb00d10ea378a7acc1b7ac0c97216dc7950a1c5250e082585613195a772927&=&format=webp&quality=lossless&width=1144&height=856"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - in حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "disco",
+                name: "الدسكو",
+                square: "6185",
+                cops: 15,
+                criminals: 10,
+                weapons: "Ap pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490093401616678984/13.png?ex=6a33b35f&is=6a3261df&hm=58958a9d80f7e696e33fb814a1e3356fe34e01970dd94f9793d9819a1a9f0164&=&format=webp&quality=lossless",
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490093401964544151/14.png?ex=6a33b35f&is=6a3261df&hm=72708b0200b81665a351245a788a39d198ff830b412d7f959daadd490c60ab13&=&format=webp&quality=lossless"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه- يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "blanca",
+                name: "بلانكا",
+                square: "5024",
+                cops: 25,
+                criminals: 21,
+                weapons: "جميع الاسلحه ما عدا السنايبر والشتقن",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490093509280268569/16.png?ex=6a33b379&is=6a3261f9&hm=dd2bca5e0b855c54352ae81d6fe465750a66ed3db0bda5d91066d38b99a36447&=&format=webp&quality=lossless&width=1376&height=942"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            },
+            {
+                id: "humane",
+                name: "الهيومن",
+                square: "2060",
+                cops: 25,
+                criminals: 21,
+                weapons: "Ap pistol",
+                images: [
+                    "https://media.discordapp.net/attachments/1480976637561540668/1490093509280268569/16.png?ex=6a33b379&is=6a3261f9&hm=dd2bca5e0b855c54352ae81d6fe465750a66ed3db0bda5d91066d38b99a36447&=&format=webp&quality=lossless&width=1376&height=942"
+                ],
+                rules: {
+                    red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
+                    blue: "منقطة تفاوص ويسمح فقط بالتواجد فيها من يريد التفاوض ( شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات )",
+                    green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر في حال تجاوزها يحق لهم اخذه"
+                }
+            }
+        ];
+
+        // ------------------ إدارة الواجهة وبناء العناصر ------------------
+        const sitesListEl = document.getElementById("sitesList");
+        const siteSearchEl = document.getElementById("siteSearch");
+        const detailsPanel = document.getElementById("siteDetailsPanel");
+
+        function initSitesList(filterText = "") {
+            sitesListEl.innerHTML = "";
+            const filtered = sitesData.filter(site => site.name.includes(filterText) || site.square.includes(filterText));
+            
+            if (filtered.length === 0) {
+                sitesListEl.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 14px;">لا توجد مواقع تطابق البحث</div>`;
+                return;
+            }
+
+            filtered.forEach(site => {
+                const item = document.createElement("div");
+                item.className = "site-item";
+                item.dataset.id = site.id;
+                item.innerHTML = `
+                    <div class="site-item-header">
+                        <span class="site-item-title">${site.name}</span>
+                        <span class="site-item-badge">#${site.square}</span>
+                    </div>
+                    <div class="site-item-desc">
+                        <span>👥 عساكر: ${site.cops}</span>
+                        <span>👥 مجرمين: ${site.criminals}</span>
+                    </div>
+                `;
+                item.addEventListener("click", () => selectSite(site));
+                sitesListEl.appendChild(item);
+            });
+        }
+
+        // تفاعلية تحديد الموقع وعرض تفاصيله
+        let activeImages = [];
+        let activeImageIndex = 0;
+
+        function selectSite(site) {
+            // إبراز العنصر المحدد في القائمة
+            document.querySelectorAll(".site-item").forEach(el => {
+                el.classList.remove("active");
+                if (el.dataset.id === site.id) el.classList.add("active");
+            });
+
+            // إخفاء الشاشة الترحيبية
+            document.getElementById("mapWelcomeScreen").classList.add("hidden");
+
+            // تعبئة البيانات في اللوحة
+            document.getElementById("detailName").textContent = site.name;
+            document.getElementById("detailSquare").textContent = site.square;
+            document.getElementById("detailCops").textContent = site.cops;
+            document.getElementById("detailCriminals").textContent = site.criminals;
+            document.getElementById("detailWeapons").textContent = site.weapons;
+
+            // بناء القوانين الملونة ديناميكياً
+            const rulesWrapper = document.getElementById("detailRules");
+            rulesWrapper.innerHTML = "";
+
+            if (site.rules.red) {
+                rulesWrapper.appendChild(createRuleCard("🔴 المنطقة الحمراء", site.rules.red, "zone-red"));
+            }
+            if (site.rules.blue) {
+                rulesWrapper.appendChild(createRuleCard("🔵 المنطقة الزرقاء", site.rules.blue, "zone-blue"));
+            }
+            if (site.rules.green) {
+                rulesWrapper.appendChild(createRuleCard("🟢 المنطقة الخضراء", site.rules.green, "zone-green"));
+            }
+            if (site.rules.white) {
+                rulesWrapper.appendChild(createRuleCard("⚪ المنطقة البيضاء", site.rules.white, "zone-white"));
+            }
+
+            // عرض اللوحة الجانبية
+            detailsPanel.classList.remove("hidden");
+            detailsPanel.classList.add("open-mobile");
+
+            // تحديث صور المعرض في المنتصف
+            activeImages = site.images || [];
+            activeImageIndex = 0;
+            updateMainGallery();
+        }
+
+        function createRuleCard(title, text, className) {
+            const card = document.createElement("div");
+            card.className = `zone-rule-card ${className}`;
+            card.innerHTML = `
+                <div class="zone-header">${title}</div>
+                <div class="zone-body">${text}</div>
+            `;
+            return card;
+        }
+
+        // إدارة معرض الصور المدمج في المنتصف
+        function updateMainGallery() {
+            const wrapper = document.getElementById("mapImageWrapper");
+            const prevBtn = document.getElementById("mapGalleryPrev");
+            const nextBtn = document.getElementById("mapGalleryNext");
+            const dotsEl = document.getElementById("mapGalleryDots");
+
+            dotsEl.innerHTML = "";
+
+            if (activeImages.length === 0) {
+                // قالب يعرض في حال عدم توفر صور بعد للموقع
+                wrapper.innerHTML = `
+                    <div class="map-image-placeholder-inner">
+                        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--gold); opacity: 0.8;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <h3>بانتظار رفع صورة الخريطة</h3>
+                        <p>يرجى إضافة مسار أو رابط الصورة الخاصة بهذا الموقع داخل مصفوفة <code>images</code> للموقع المعني في كود صفحة <code>map.html</code> لتظهر هنا وتدعم التكبير والتحريك.</p>
+                    </div>
+                `;
+                prevBtn.style.display = "none";
+                nextBtn.style.display = "none";
+                dotsEl.style.display = "none";
+            } else {
+                // عرض الصورة الحالية للموقع
+                wrapper.innerHTML = `
+                    <img src="${activeImages[activeImageIndex]}" referrerpolicy="no-referrer" alt="خريطة الموقع" class="map-image-main" id="mapImage">
+                `;
+
+                const hasMultiple = activeImages.length > 1;
+                prevBtn.style.display = hasMultiple ? "flex" : "none";
+                nextBtn.style.display = hasMultiple ? "flex" : "none";
+                dotsEl.style.display = hasMultiple ? "flex" : "none";
+
+                if (hasMultiple) {
+                    activeImages.forEach((_, idx) => {
+                        const dot = document.createElement("div");
+                        dot.className = `map-gallery-dot ${idx === activeImageIndex ? "active" : ""}`;
+                        dot.addEventListener("click", () => goToImageSlide(idx));
+                        dotsEl.appendChild(dot);
+                    });
+                }
+            }
+
+            // إعادة تعيين التكبير وتوسيط الصورة الجديدة
+            resetView();
+        }
+
+        function goToImageSlide(idx) {
+            if (idx < 0) idx = activeImages.length - 1;
+            if (idx >= activeImages.length) idx = 0;
+            activeImageIndex = idx;
+            updateMainGallery();
+        }
+
+        document.getElementById("mapGalleryPrev").addEventListener("click", () => goToImageSlide(activeImageIndex - 1));
+        document.getElementById("mapGalleryNext").addEventListener("click", () => goToImageSlide(activeImageIndex + 1));
+
+        // إغلاق اللوحة الجانبية وإظهار الشاشة الترحيبية من جديد
+        document.getElementById("closePanelBtn").addEventListener("click", () => {
+            detailsPanel.classList.add("hidden");
+            detailsPanel.classList.remove("open-mobile");
+            document.getElementById("mapWelcomeScreen").classList.remove("hidden");
+            document.getElementById("mapImageWrapper").innerHTML = "";
+            document.getElementById("mapGalleryPrev").style.display = "none";
+            document.getElementById("mapGalleryNext").style.display = "none";
+            document.getElementById("mapGalleryDots").style.display = "none";
+            document.querySelectorAll(".site-item").forEach(el => el.classList.remove("active"));
+        });
+
+        // فلترة القائمة عبر البحث
+        siteSearchEl.addEventListener("input", (e) => {
+            initSitesList(e.target.value.trim());
+        });
+
+
+        // ------------------ ميزة التكبير والتحريك الفخمة للخريطة ------------------
+        const mapViewer = document.getElementById("mapViewer");
+        const mapImageWrapper = document.getElementById("mapImageWrapper");
+
+        let zoomScale = 0.65; // زوم ابتدائي أنسب للمواقع
+        const minScale = 0.2;
+        const maxScale = 4.0;
+        const scaleStep = 0.15;
+
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let posX = 0, posY = 0;
+
+        // تحديث إحداثيات ومقياس الخريطة بصرياً
+        function updateMapTransform() {
+            mapImageWrapper.style.transform = `translate(${posX}px, ${posY}px) scale(${zoomScale})`;
+        }
+
+        // تكبير وتصغير
+        function zoom(direction, mouseX = null, mouseY = null) {
+            const oldScale = zoomScale;
+            if (direction === "in") {
+                zoomScale = Math.min(zoomScale + scaleStep * zoomScale, maxScale);
+            } else {
+                zoomScale = Math.max(zoomScale - scaleStep * zoomScale, minScale);
+            }
+
+            // التكبير باتجاه موقع مؤشر الماوس إن وجد
+            if (mouseX !== null && mouseY !== null) {
+                const rect = mapViewer.getBoundingClientRect();
+                const viewX = mouseX - rect.left - rect.width / 2;
+                const viewY = mouseY - rect.top - rect.height / 2;
+                
+                posX = viewX - (viewX - posX) * (zoomScale / oldScale);
+                posY = viewY - (viewY - posY) * (zoomScale / oldScale);
+            }
+            updateMapTransform();
+        }
+
+        // إعادة التعيين والتوسيط
+        function resetView() {
+            zoomScale = 0.65;
+            posX = 0;
+            posY = 0;
+            updateMapTransform();
+        }
+
+        // أزرار التحكم
+        document.getElementById("zoomIn").addEventListener("click", () => zoom("in"));
+        document.getElementById("zoomOut").addEventListener("click", () => zoom("out"));
+        document.getElementById("resetZoom").addEventListener("click", resetView);
+
+        // ملء الشاشة للعارض
+        document.getElementById("fullscreenToggle").addEventListener("click", () => {
+            if (!document.fullscreenElement) {
+                mapViewer.requestFullscreen().catch(err => {
+                    alert(`خطأ في تفعيل وضع ملء الشاشة: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // التكبير بعجلة الفأرة
+        mapViewer.addEventListener("wheel", (e) => {
+            // نقوم بالزوم فقط إذا كان هناك موقع محدد وتتوفر له صورة
+            if (activeImages.length > 0) {
+                e.preventDefault();
+                const dir = e.deltaY < 0 ? "in" : "out";
+                zoom(dir, e.clientX, e.clientY);
+            }
+        }, { passive: false });
+
+        // سحب وتحريك الخريطة (الماوس واللمس)
+        function startDrag(e) {
+            if (activeImages.length === 0) return; // منع السحب إن لم يكن هناك صورة
+            isDragging = true;
+            mapViewer.style.cursor = "grabbing";
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            startX = clientX - posX;
+            startY = clientY - posY;
+        }
+
+        function doDrag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            posX = clientX - startX;
+            posY = clientY - startY;
+            updateMapTransform();
+        }
+
+        function stopDrag() {
+            isDragging = false;
+            mapViewer.style.cursor = "grab";
+        }
+
+        // مستمعات الأحداث للماوس
+        mapViewer.addEventListener("mousedown", startDrag);
+        window.addEventListener("mousemove", doDrag);
+        window.addEventListener("mouseup", stopDrag);
+
+        // مستمعات الأحداث للشاشات اللمسية
+        mapViewer.addEventListener("touchstart", startDrag, { passive: true });
+        mapViewer.addEventListener("touchmove", doDrag, { passive: false });
+        mapViewer.addEventListener("touchend", stopDrag);
+
+
+        // ------------------ التحكم بالقوائم الجانبية في الهواتف ------------------
+        const mapSidebar = document.getElementById("mapSidebar");
+        const sidebarToggle = document.getElementById("sidebarToggle");
+
+        sidebarToggle.addEventListener("click", () => {
+            mapSidebar.classList.toggle("open");
+            if (mapSidebar.classList.contains("open")) {
+                sidebarToggle.style.background = "var(--bg-card)";
+                sidebarToggle.style.color = "var(--gold)";
+                sidebarToggle.innerHTML = "❌";
+            } else {
+                sidebarToggle.style.background = "var(--gold)";
+                sidebarToggle.style.color = "var(--bg-deep)";
+                sidebarToggle.innerHTML = "🗺️";
+            }
+        });
+
+        // تهيئة القائمة بالكامل عند التحميل
+        initSitesList();
+    </script>
+</body>
+</html>
