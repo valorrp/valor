@@ -344,13 +344,15 @@
                 const onlineUsernames = new Set((data.members || []).map(m => String(m.username).toLowerCase()));
 
                 staffCards.forEach(card => {
-                    const usernameAttr = card.getAttribute('data-discord-username') || card.querySelector('h4')?.textContent;
+                    const usernameAttr = card.getAttribute('data-discord-username');
+                    const cardName = card.querySelector('h4')?.textContent;
                     const statusEl = card.querySelector('.staff-status');
-                    if (!statusEl || !usernameAttr) return;
+                    if (!statusEl) return;
 
-                    const username = usernameAttr.trim().toLowerCase();
+                    const username = usernameAttr ? usernameAttr.trim().toLowerCase() : '';
+                    const dispName = cardName ? cardName.trim().toLowerCase() : '';
 
-                    if (onlineUsernames.has(username)) {
+                    if ((username && onlineUsernames.has(username)) || (dispName && onlineUsernames.has(dispName))) {
                         statusEl.textContent = 'متصل';
                         statusEl.style.color = 'var(--emerald)';
                     } else {
