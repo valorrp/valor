@@ -2,6 +2,7 @@
     'use strict';
 
     // ─── Interactive Map Zones Data ───
+    // To add more zones, simply add a new key here with top/left percentage coordinates and type ("red" or "green")
     const mapZonesData = {
         jewelry: {
             name: "موقع المجوهرات",
@@ -16,7 +17,10 @@
                 red: "منقطة مجرمين ويمنع على المجرمين تجاوزها - في حال تجاوزها يتم خطفه - يُمنع على العسكري الذهاب لحدود العصابة في حال تجاوزها يحق لهم خطفه",
                 blue: "منقطة تفاوض ويسمح فقط بالتواجد فيها من يريد التفاوض (شخص واحد فقط من طرف العصابات - وشخص واحد فقط من طرف الوزارات)",
                 green: "منقطة عساكر ويمنع على العساكر تجاوزها - في حال تجاوزها يتم استبعاده - يُمنع على عضو العصابة الذهاب لحدود العساكر"
-            }
+            },
+            top: 76.2,
+            left: 42.1,
+            type: "red"
         },
         pillbox: {
             name: "مستشفى بيليبوكس المركزي",
@@ -31,7 +35,10 @@
                 red: "لا يُسمح بأي نشاط عدائي أو قتال في حرم المستشفى نهائياً.",
                 blue: "منطقة حظر جنائي كاملة ويمنع خطف الأطباء أو المرضى.",
                 green: "يُمنع على الجهات الأمنية إطلاق النار أو الاعتقال العنيف داخل المبنى إلا للضرورة القصوى."
-            }
+            },
+            top: 79,
+            left: 48,
+            type: "green"
         },
         missionrow: {
             name: "مركز الشرطة الرئيسي (Mission Row)",
@@ -45,8 +52,11 @@
             rules: {
                 red: "يُمنع منعاً باتاً هجوم العصابات على المركز بدون سيناريو معتمد رسمياً ومسبقاً من الإدارة.",
                 blue: "منطقة تفاوض آمنة عند تسليم أنفسهم أو طلب تسوية قانونية.",
-                green: "يُسَمح للعساكر بالدفاع الكامل واستخدام القوة المميتة داخل المركز وحرمه."
-            }
+                green: "يُسمح للعساكر بالدفاع الكامل واستخدام القوة المميتة داخل المركز وحرمه."
+            },
+            top: 81,
+            left: 51,
+            type: "green"
         },
         legion: {
             name: "ساحة الليجن سكوير (Legion Square)",
@@ -61,7 +71,10 @@
                 red: "يُمنع القتل أو الخطف تماماً في هذه الساحة كونها نقطة تجمع عامة للاعبين الجدد.",
                 blue: "يُسمح بالتجمع السلمي والتواصل الاجتماعي فقط OOC و IC.",
                 green: "تعتبر منطقة تحت الحماية المدنية العالية ويُعاقب بشدة من يثير الفوضى فيها."
-            }
+            },
+            top: 82,
+            left: 49,
+            type: "green"
         },
         fortzancudo: {
             name: "قاعدة فورت زانكودو العسكرية (Fort Zancudo)",
@@ -76,11 +89,14 @@
                 red: "منطقة عسكرية حمراء يُطلق النار فيها فوراً دون تحذير على أي دخيل أو طائرة غير مصرح لها.",
                 blue: "يُمنع التفاوض نهائياً داخل حدود القاعدة العسكرية.",
                 green: "تخضع لسيطرة الجيش وزارة الدفاع بالكامل ويحق لهم تصفية أي شخص يتجاوز الحدود."
-            }
+            },
+            top: 38,
+            left: 22,
+            type: "red"
         }
     };
 
-    const hotspots = document.querySelectorAll('.map-hotspot');
+    const mapImageWrapper = document.getElementById('mapImageWrapper');
     const cardEmptyState = document.getElementById('cardEmptyState');
     const cardContent = document.getElementById('cardContent');
     const zoneBadge = document.getElementById('zoneBadge');
@@ -103,6 +119,7 @@
         if (!zone) return;
 
         // Toggle active hotspot class
+        const hotspots = document.querySelectorAll('.map-hotspot');
         hotspots.forEach(h => {
             if (h.getAttribute('data-id') === zoneId) {
                 h.classList.add('active');
@@ -177,13 +194,41 @@
         }
     }
 
-    // Add click listeners to hotspots
-    hotspots.forEach(hotspot => {
-        hotspot.addEventListener('click', () => {
-            const zoneId = hotspot.getAttribute('data-id');
-            selectZone(zoneId);
+    // Function to render all hotspots dynamically from mapZonesData
+    function renderHotspots() {
+        if (!mapImageWrapper) return;
+        
+        // Remove existing hotspots (but keep the map image)
+        const existingHotspots = mapImageWrapper.querySelectorAll('.map-hotspot');
+        existingHotspots.forEach(h => h.remove());
+
+        // Create new hotspots
+        Object.keys(mapZonesData).forEach(zoneId => {
+            const zone = mapZonesData[zoneId];
+            
+            const hotspotEl = document.createElement('div');
+            hotspotEl.className = `map-hotspot hotspot-${zone.type || 'green'}`;
+            hotspotEl.style.top = `${zone.top}%`;
+            hotspotEl.style.left = `${zone.left}%`;
+            hotspotEl.setAttribute('data-id', zoneId);
+            
+            hotspotEl.innerHTML = `
+                <span class="hotspot-pulse"></span>
+                <span class="hotspot-core"></span>
+                <div class="hotspot-tooltip">${zone.name}</div>
+            `;
+            
+            // Add click listener
+            hotspotEl.addEventListener('click', () => {
+                selectZone(zoneId);
+            });
+            
+            mapImageWrapper.appendChild(hotspotEl);
         });
-    });
+    }
+
+    // Initialize map
+    renderHotspots();
 
     // Select Jewelry by default on load
     if (mapZonesData.jewelry) {
