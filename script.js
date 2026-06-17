@@ -195,16 +195,23 @@
         });
     });
     if (window.location.hash) {
-        setTimeout(() => {
-            const target = document.querySelector(window.location.hash);
-            if (target) {
-                const top = target.getBoundingClientRect().top + window.scrollY - 80;
-                window.scrollTo({
-                    top,
-                    behavior: 'smooth'
-                });
-            }
-        }, 1600);
+        const navEntries = performance.getEntriesByType('navigation');
+        const isReload = navEntries.length > 0 && navEntries[0].type === 'reload';
+
+        if (isReload) {
+            history.replaceState(null, '', window.location.pathname);
+        } else {
+            setTimeout(() => {
+                const target = document.querySelector(window.location.hash);
+                if (target) {
+                    const top = target.getBoundingClientRect().top + window.scrollY - 80;
+                    window.scrollTo({
+                        top,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 1600);
+        }
     }
     const searchInput = document.getElementById('rulesSearch');
     if (searchInput) {
