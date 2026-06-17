@@ -340,15 +340,17 @@
             }
 
             if (staffCards.length > 0) {
-                // استخراج قائمة معرفات الأعضاء المتصلين بالإنترنت
-                const onlineMembers = new Set((data.members || []).map(m => String(m.id)));
+                // استخراج قائمة أسماء الأعضاء المتصلين بالإنترنت (بالحروف الصغيرة لمقارنة غير حساسة للأحرف)
+                const onlineUsernames = new Set((data.members || []).map(m => String(m.username).toLowerCase()));
 
                 staffCards.forEach(card => {
-                    const discordId = card.getAttribute('data-discord-id');
+                    const usernameAttr = card.getAttribute('data-discord-username') || card.querySelector('h4')?.textContent;
                     const statusEl = card.querySelector('.staff-status');
-                    if (!statusEl) return;
+                    if (!statusEl || !usernameAttr) return;
 
-                    if (onlineMembers.has(String(discordId))) {
+                    const username = usernameAttr.trim().toLowerCase();
+
+                    if (onlineUsernames.has(username)) {
                         statusEl.textContent = 'متصل';
                         statusEl.style.color = 'var(--emerald)';
                     } else {
