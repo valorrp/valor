@@ -89,7 +89,7 @@
   });
 
   // ─── Counter animation ────────────────────────────────
-  const counters = document.querySelectorAll('[data-count]');
+  const counters = document.querySelectorAll('[data-count]:not(#livePlayersCount)');
   let countersStarted = false;
 
   function animateCounters() {
@@ -127,140 +127,7 @@
   const heroStats = document.querySelector('.hero-stats');
   if (heroStats) heroObserver.observe(heroStats);
 
-  // ─── Live Server Status & Player Count ─────────────────
-  const playerCounter = document.getElementById('livePlayersCount');
-  const serverStatus = document.getElementById('serverStatusTag');
 
-  if (playerCounter && serverStatus) {
-    const serverId = 'z5rpg9';
-    let defaultIp = '82.22.62.186:30120'; // آخر IP معروف للسيرفر
-
-    function fetchWithTimeout(url, timeout = 5000) {
-      return Promise.race([
-        fetch(url),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), timeout))
-      ]);
-    }
-
-    async function fetchServerStats(ip) {
-      const urls = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(`http://${ip}/dynamic.json`)}`,
-        `https://api.cors.lol/?url=${encodeURIComponent(`http://${ip}/dynamic.json`)}`
-      ];
-
-      for (const url of urls) {
-        try {
-          const res = await fetchWithTimeout(url, 4000);
-          if (!res.ok) continue;
-          const stats = await res.json();
-          if (stats && typeof stats.clients !== 'undefined') {
-            return stats;
-          }
-        } catch (e) {
-          console.warn(`فشل الاتصال عبر الوكيل: ${url}`, e);
-        }
-      }
-      throw new Error('جميع محاولات الاتصال بالـ IP المباشر فشلت');
-    }
-
-    async function resolveIpDynamically() {
-      const proxyUrls = [
-        `https://api.allorigins.win/get?url=${encodeURIComponent(`https://cfx.re/join/${serverId}`)}`,
-        `https://api.cors.lol/?url=${encodeURIComponent(`https://cfx.re/join/${serverId}`)}`
-      ];
-
-      for (const url of proxyUrls) {
-        try {
-          const res = await fetchWithTimeout(url, 5000);
-          if (!res.ok) continue;
-          const data = await res.json();
-          
-          let headers;
-          if (data && data.status && data.status.response_headers) {
-            headers = data.status.response_headers;
-          } else if (data && data.headers) {
-            headers = data.headers;
-          }
-          
-          if (headers) {
-            const targetKey = Object.keys(headers).find(key => key.toLowerCase() === 'x-citizenfx-url');
-            if (targetKey) {
-              const rawUrl = headers[targetKey];
-              const match = rawUrl.match(/https?:\/\/([^\/]+)/);
-              if (match && match[1]) {
-                return match[1];
-              }
-            }
-          }
-        } catch (e) {
-          console.warn(`فشل استخراج الـ IP ديناميكياً عبر: ${url}`, e);
-        }
-      }
-      throw new Error('فشل استخراج الـ IP ديناميكياً');
-    }
-
-    async function updateLiveStats() {
-      try {
-        // 1. محاولة الاتصال بالـ IP المعروف أولاً (الأسرع)
-        try {
-          const stats = await fetchServerStats(defaultIp);
-          displayStats(stats);
-          return;
-        } catch (e) {
-          console.warn('فشل الاتصال بالـ IP المباشر الافتراضي، جاري محاولة تحديث الـ IP ديناميكياً...', e);
-        }
-
-        // 2. محاولة حل الـ IP ديناميكياً عبر cfx.re
-        const resolvedIp = await resolveIpDynamically();
-        defaultIp = resolvedIp;
-        const stats = await fetchServerStats(resolvedIp);
-        displayStats(stats);
-      } catch (e) {
-        console.error('فشل جلب الإحصائيات بالكامل:', e);
-        displayOffline();
-      }
-    }
-
-    function displayStats(stats) {
-      const players = stats.clients;
-      const maxPlayers = stats.sv_maxclients || 48;
-      
-      playerCounter.dataset.count = players;
-      if (countersStarted) {
-        animateSingleCounter(playerCounter, players);
-      } else {
-        playerCounter.textContent = players;
-      }
-
-      serverStatus.style.color = 'var(--emerald)';
-      serverStatus.innerHTML = `<span class="status-dot" style="display: inline-block; margin-inline-end: 6px; background: var(--emerald); box-shadow: 0 0 10px var(--emerald);"></span>متصل (${players}/${maxPlayers})`;
-    }
-
-    function displayOffline() {
-      playerCounter.dataset.count = 0;
-      playerCounter.textContent = '0';
-      serverStatus.style.color = '#ef4444';
-      serverStatus.innerHTML = `<span class="status-dot" style="display: inline-block; margin-inline-end: 6px; background: #ef4444; box-shadow: 0 0 10px #ef4444;"></span>غير متصل`;
-    }
-
-    updateLiveStats();
-    setInterval(updateLiveStats, 120000);
-  }
-
-  function animateSingleCounter(element, target) {
-    const duration = 1500;
-    const start = performance.now();
-    const startValue = parseInt(element.textContent, 10) || 0;
-    
-    function tick(now) {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const value = Math.floor(startValue + eased * (target - startValue));
-      element.textContent = value;
-      if (progress < 1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  }
 
   // ─── Reveal on scroll ─────────────────────────────────
   const revealEls = document.querySelectorAll('.rule, .concept, .price-card, .robbery-card, .duration-card, .info-box, .ct-row, .section-head');
