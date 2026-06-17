@@ -324,28 +324,39 @@
     const staffCards = document.querySelectorAll('.staff-card');
 
     async function updateStaffStatus() {
-        if (staffCards.length === 0) return;
         try {
             const response = await fetch(`https://discord.com/api/guilds/${guildId}/widget.json`);
             if (!response.ok) return;
             const data = await response.json();
             
-            // استخراج قائمة معرفات الأعضاء المتصلين بالإنترنت
-            const onlineMembers = new Set((data.members || []).map(m => String(m.id)));
-
-            staffCards.forEach(card => {
-                const discordId = card.getAttribute('data-discord-id');
-                const statusEl = card.querySelector('.staff-status');
-                if (!statusEl) return;
-
-                if (onlineMembers.has(String(discordId))) {
-                    statusEl.textContent = 'متصل';
-                    statusEl.style.color = 'var(--emerald)';
-                } else {
-                    statusEl.textContent = 'غير متصل';
-                    statusEl.style.color = 'var(--text-muted)';
+            // تحديث عدد المتصلين في شارة الديسكورد
+            const onlineCountEl = document.getElementById('discordOnlineCount');
+            if (onlineCountEl) {
+                if (data.presence_count !== undefined) {
+                    onlineCountEl.textContent = data.presence_count;
+                } else if (data.members) {
+                    onlineCountEl.textContent = data.members.length;
                 }
-            });
+            }
+
+            if (staffCards.length > 0) {
+                // استخراج قائمة معرفات الأعضاء المتصلين بالإنترنت
+                const onlineMembers = new Set((data.members || []).map(m => String(m.id)));
+
+                staffCards.forEach(card => {
+                    const discordId = card.getAttribute('data-discord-id');
+                    const statusEl = card.querySelector('.staff-status');
+                    if (!statusEl) return;
+
+                    if (onlineMembers.has(String(discordId))) {
+                        statusEl.textContent = 'متصل';
+                        statusEl.style.color = 'var(--emerald)';
+                    } else {
+                        statusEl.textContent = 'غير متصل';
+                        statusEl.style.color = 'var(--text-muted)';
+                    }
+                });
+            }
         } catch (error) {
             console.error('Error fetching Discord widget status:', error);
         }
