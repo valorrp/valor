@@ -2291,39 +2291,4 @@ button {
     }
 }
 
-.discord-layout-wrapper {
-    display: grid;
-    grid-template-columns: 1fr 350px;
-    gap: 24px;
-    align-items: start;
-}
-
-.discord-widget-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px;
-    position: sticky;
-    top: 100px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    transition: border-color 0.3s ease;
-    display: flex;
-    flex-direction: column;
-}
-
-.discord-widget-card:hover {
-    border-color: var(--border-gold);
-}
-
-@media (max-width: 1024px) {
-    .discord-layout-wrapper {
-        grid-template-columns: 1fr;
-    }
-    .discord-widget-card {
-        position: static;
-        max-width: 380px;
-        margin: 0 auto;
-        width: 100%;
-    }
-}
 
