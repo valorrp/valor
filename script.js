@@ -329,16 +329,6 @@
             if (!response.ok) return;
             const data = await response.json();
             
-            // تحديث عدد المتصلين في شارة الديسكورد
-            const onlineCountEl = document.getElementById('discordOnlineCount');
-            if (onlineCountEl) {
-                if (data.presence_count !== undefined) {
-                    onlineCountEl.textContent = data.presence_count;
-                } else if (data.members) {
-                    onlineCountEl.textContent = data.members.length;
-                }
-            }
-
             if (staffCards.length > 0) {
                 // استخراج قائمة أسماء الأعضاء المتصلين بالإنترنت (بالحروف الصغيرة لمقارنة غير حساسة للأحرف)
                 const onlineUsernames = new Set((data.members || []).map(m => String(m.username).toLowerCase()));
