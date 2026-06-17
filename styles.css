@@ -2237,6 +2237,31 @@ button {
     filter: grayscale(1)
 }
 
+/* ─── Hero Logo Styles ─── */
+.hero-logo-wrapper {
+    display: inline-flex;
+    margin-bottom: 24px;
+    animation: fade-up 0.8s ease backwards;
+}
+
+.hero-logo {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 20px rgba(176, 107, 255, 0.4));
+    animation: float-logo 4s ease-in-out infinite;
+}
+
+@keyframes float-logo {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+
 
 
 
